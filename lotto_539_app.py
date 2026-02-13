@@ -98,7 +98,7 @@ if uploaded_file:
                     overlap = len(set(res_list).intersection(last_draw))
                     has_triple = any(res_list[j]+2 == res_list[j+1]+1 == res_list[j+2] for j in range(len(res_list)-2))
 
-                    # 篩選邏輯：總和符合、隨機度夠(AC>=5)、不與前期過度重複、無三連號
+                    # 篩選邏輯
                     if (target_min <= f_sum <= target_max and 
                         ac_val >= 5 and overlap <= 2 and not has_triple):
                         candidates.append((res_list, f_sum, ac_val))
@@ -107,24 +107,25 @@ if uploaded_file:
             if candidates:
                 rec_f, f_sum, ac_val = random.choice(candidates)
                 
-                # 比對歷史戰績
+                # 【回測比對重點】執行歷史比對
                 match_results = check_history_match(rec_f, history_rows)
 
-                st.success("✨ 分析完成！")
+                st.success("✨ 分析完成！推薦組合如下：")
                 st.markdown(f"## 推薦號碼：\n`{rec_f}`")
 
-                # 顯示歷史回測摘要
-                st.markdown("### 📜 歷史回測戰績")
+                # --- 歷史比對結果顯示區 ---
+                st.markdown("### 📜 歷史回測戰績 (資料庫比對)")
                 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-                m_col1.metric("中頭獎", f"{match_results[5]} 次")
-                m_col2.metric("中貳獎", f"{match_results[4]} 次")
-                m_col3.metric("中參獎", f"{match_results[3]} 次")
-                m_col4.metric("中肆獎", f"{match_results[2]} 次")
+                m_col1.metric("中頭獎(5碼)", f"{match_results[5]} 次")
+                m_col2.metric("中貳獎(4碼)", f"{match_results[4]} 次")
+                m_col3.metric("中參獎(3碼)", f"{match_results[3]} 次")
+                m_col4.metric("中肆獎(2碼)", f"{match_results[2]} 次")
 
                 if match_results[5] > 0:
-                    st.warning("⚠️ 警告：這組號碼在過去已開過頭獎，重複機率極低，建議重新模擬。")
+                    st.warning("⚠️ 警告：這組號碼在過去已開過頭獎，重複出現相同 5 碼組合機率極低。")
                 else:
-                    st.info("✅ 歷史紀錄：這組號碼未曾開過頭獎，具備開出潛力。")
+                    st.info("✅ 歷史紀錄：這組號碼未曾開過頭獎。")
+                # -------------------------
 
                 st.markdown("---")
                 col_a, col_b, col_c = st.columns(3)
@@ -132,11 +133,10 @@ if uploaded_file:
                 col_b.metric("AC 複雜度", ac_val)
                 col_c.metric("連號組數", count_consecutive_groups(rec_f))
                 
-                # 存檔功能
-                result_text = f"539 分析報告\n時間: {datetime.now()}\n號碼: {rec_f}\n總和: {f_sum}\nAC值: {ac_val}"
+                result_text = f"539 分析結果\n時間: {datetime.now()}\n號碼: {rec_f}\n總和: {f_sum}\nAC值: {ac_val}"
                 st.download_button("📥 下載本次分析結果", result_text, file_name="539_report.txt")
             else:
-                st.error("❌ 8000 次模擬內找不到符合該總和區間的組合。請嘗試放寬樣本總和數值。")
+                st.error("❌ 8000 次模擬內找不到符合條件的組合。請放寬樣本總和限制。")
 
     except Exception as e:
         st.error(f"讀取錯誤: {e}")
@@ -144,4 +144,4 @@ else:
     st.info("💡 請上傳您的 lotto_539.xlsx 開始分析。")
 
 st.markdown("---")
-st.caption("本工具結合了現場樣本趨勢、8000次大數據模擬與歷史碰撞檢查。")
+st.caption("本工具結合了現場樣本趨勢、8000次大數據模擬與歷史碰撞回測檢查。")
