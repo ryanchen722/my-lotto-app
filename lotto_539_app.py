@@ -42,25 +42,26 @@ if uploaded_file:
         all_nums = []
         history_ac_values = []
         
-        # 假設資料在第 2 欄 (index 1)
+        # 數據清理與讀取
         for val in df.iloc[:, 1].dropna().astype(str):
             clean = val.replace(' ', ',').replace('，', ',').replace('?', '')
             nums = sorted([int(n) for n in clean.split(',') if n.strip().isdigit()])
             if len(nums) == 5:
                 history_rows.append(nums)
                 all_nums.extend(nums)
-                # 計算每一期的歷史 AC 值
                 history_ac_values.append(calculate_ac_value(nums))
         
         # --- 側邊欄：手動樣本輸入 ---
-        st.sidebar.header("📝 現場樣本參考")
-        st.sidebar.info("若在投注站看到電腦選號，請輸入其總和以校正算法。")
-        sample_sum = st.sidebar.number_input("輸入樣本總和 (若無則維持 0)", min_value=0, value=0)
+        st.sidebar.header("📝 趨勢校正模式")
+        st.sidebar.write("如果您在投注站看到電腦選號，輸入其總和可優化模擬精準度。")
+        sample_sum = st.sidebar.number_input("輸入現場樣本總和 (若無則維持 0)", min_value=0, value=0)
+        
+        if sample_sum > 0:
+            st.sidebar.success(f"✅ 已啟用趨勢鎖定：{sample_sum-15} ~ {sample_sum+15}")
 
         # --- 歷史規律與 AC 值展示 ---
         st.subheader("🕵️ 歷史規律掃描 (最近 30 期)")
         
-        # 1. 顯示最近 5 期的卡片
         st.markdown("##### 最近 5 期摘要")
         cols = st.columns(5)
         for i in range(min(5, len(history_rows))):
@@ -72,7 +73,6 @@ if uploaded_file:
             )
             cols[i].caption(f"{history_rows[i]}")
 
-        # 2. 展開顯示其餘期數 (至第 30 期)
         with st.expander("查看更多歷史數據 (前 6-30 期)"):
             history_data = []
             max_hist = min(30, len(history_rows))
@@ -86,25 +86,25 @@ if uploaded_file:
                 })
             st.table(pd.DataFrame(history_data))
 
-        # 顯示 AC 統計摘要
         if history_ac_values:
             recent_30_ac = history_ac_values[:30]
             avg_ac = sum(recent_30_ac) / len(recent_30_ac)
             most_common_ac = Counter(recent_30_ac).most_common(1)[0][0]
             
             st.info(f"""
-            **📈 最近 30 期 AC 數據分析：**
+            **📈 最近 30 期數據分析指標：**
             * 歷史平均 AC 值：`{avg_ac:.2f}`
-            * 出現頻率最高 AC 值：`{most_common_ac}` (建議區間：5-8)
+            * 最佳隨機區間：`AC 5 或 6`
             """)
 
         # --- 核心分析按鈕 ---
-        if st.button("🚀 開始精準模擬分析", use_container_width=True):
+        if st.button("🚀 執行大數據校正模擬", use_container_width=True):
             f_counts = Counter(all_nums)
             weighted_pool = []
             for n, count in f_counts.items():
                 weighted_pool.extend([n] * count)
             
+            # 根據手動輸入決定篩選範圍
             if sample_sum > 0:
                 target_min, target_max = sample_sum - 15, sample_sum + 15
             else:
@@ -112,7 +112,8 @@ if uploaded_file:
 
             last_draw = set(history_rows[0]) if history_rows else set()
             candidates = []
-            with st.spinner('正在進行 5000 次蒙地卡羅模擬...'):
+            
+            with st.spinner('正在計算權重並進行模擬...'):
                 for _ in range(5000):
                     res_set = set()
                     while len(res_set) < 5:
@@ -122,10 +123,9 @@ if uploaded_file:
                     f_sum = sum(res_list)
                     ac_val = calculate_ac_value(res_list)
                     overlap = len(set(res_list).intersection(last_draw))
-                    # 檢查是否有三連號
                     has_triple = any(res_list[j]+2 == res_list[j+1]+1 == res_list[j+2] for j in range(len(res_list)-2))
 
-                    # 539 過濾條件：AC 值建議大於等於 5
+                    # 篩選邏輯
                     if (target_min <= f_sum <= target_max and 
                         ac_val >= 5 and overlap <= 2 and not has_triple):
                         candidates.append((res_list, f_sum, ac_val))
@@ -137,15 +137,18 @@ if uploaded_file:
                 st.success("✨ 分析完成！推薦組合如下：")
                 st.markdown(f"## 推薦號碼：\n`{rec_f}`")
 
-                st.info(f"📊 分析數據：總和 {f_sum} | AC 複雜度 {ac_val} | 連號 {count_consecutive_groups(rec_f)} 組")
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("預測總和", f_sum)
+                col_b.metric("AC 複雜度", ac_val)
+                col_c.metric("連號組數", count_consecutive_groups(rec_f))
                 
                 result_text = f"539 分析結果\n時間: {datetime.now()}\n號碼: {rec_f}\n總和: {f_sum}\nAC值: {ac_val}"
-                st.download_button("📥 下載分析結果", result_text, file_name="539_result.txt")
+                st.download_button("📥 下載此組分析結果", result_text, file_name="539_result.txt")
             else:
-                st.error("❌ 無法找到符合過濾條件的組合，請重試或調整樣本總和。")
+                st.error("❌ 找不到符合此趨勢的組合。這通常代表您輸入的樣本總和偏離歷史規律太遠，請嘗試放寬數值。")
 
     except Exception as e:
-        st.error(f"讀取檔案失敗，請檢查檔案格式: {e}")
+        st.error(f"讀取失敗: {e}")
 else:
     st.info("💡 請上傳您的 539 Excel 資料表開始分析。")
 
