@@ -62,7 +62,36 @@ if uploaded_file:
                 history_rows.append(nums)
                 all_nums.extend(nums)
         
-        # --- 側邊欄：保留現場樣本功能 ---
+        # --- 新增：最近三十期歷史掃描區 ---
+        st.subheader("🕵️ 歷史規律掃描 (最近 30 期)")
+        
+        # 顯示最近 5 期的卡片
+        st.markdown("##### 最近 5 期摘要")
+        cols = st.columns(5)
+        for i in range(min(5, len(history_rows))):
+            h_nums = history_rows[i]
+            h_sum = sum(h_nums)
+            h_ac = calculate_ac_value(h_nums)
+            cols[i].metric(f"前 {i+1} 期", f"Sum: {h_sum}", f"AC: {h_ac}")
+            cols[i].caption(f"{h_nums}")
+
+        # 展開顯示其餘期數 (至第 30 期)
+        with st.expander("查看完整最近 30 期歷史數據"):
+            history_data = []
+            max_hist = min(30, len(history_rows))
+            for i in range(max_hist):
+                history_data.append({
+                    "期數": f"前 {i+1} 期",
+                    "開獎號碼": str(history_rows[i]),
+                    "總和": sum(history_rows[i]),
+                    "AC值": calculate_ac_value(history_rows[i]),
+                    "連號": f"{count_consecutive_groups(history_rows[i])} 組"
+                })
+            st.table(pd.DataFrame(history_data))
+        
+        st.markdown("---")
+
+        # --- 側邊欄：現場樣本功能 ---
         st.sidebar.header("📝 趨勢校正模式")
         st.sidebar.write("輸入投注站電腦選號的總和，作為當前趨勢參考。")
         sample_sum = st.sidebar.number_input("現場樣本總和 (若無則維持 0)", min_value=0, value=0)
@@ -107,7 +136,7 @@ if uploaded_file:
             if candidates:
                 rec_f, f_sum, ac_val = random.choice(candidates)
                 
-                # 【回測比對重點】執行歷史比對
+                # 執行歷史回測比對
                 match_results = check_history_match(rec_f, history_rows)
 
                 st.success("✨ 分析完成！推薦組合如下：")
@@ -125,7 +154,6 @@ if uploaded_file:
                     st.warning("⚠️ 警告：這組號碼在過去已開過頭獎，重複出現相同 5 碼組合機率極低。")
                 else:
                     st.info("✅ 歷史紀錄：這組號碼未曾開過頭獎。")
-                # -------------------------
 
                 st.markdown("---")
                 col_a, col_b, col_c = st.columns(3)
@@ -144,4 +172,4 @@ else:
     st.info("💡 請上傳您的 lotto_539.xlsx 開始分析。")
 
 st.markdown("---")
-st.caption("本工具結合了現場樣本趨勢、8000次大數據模擬與歷史碰撞回測檢查。")
+st.caption("本工具結合了歷史開獎掃描、現場樣本趨勢、8000次大數據模擬與歷史碰撞檢查。")
